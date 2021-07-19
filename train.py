@@ -101,7 +101,7 @@ if __name__ == '__main__':
         with open('model.pt', 'rb') as f:
             model = torch.load(f)
     else:
-        model = SHARNN(n_token=dataset.n_token, embed_dim=1024, hidden_dim=4096, ff_dim=2048, n_layers=4, heads=1, max_len=5000, dropout=0.1, tied=True)
+        model = SHARNN(n_token=dataset.n_token, embed_dim=1024, hidden_dim=4096, n_layers=4, heads=1, max_len=5000, dropout=0.1, tied=True)
     model.to(device)
     if distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[rank], output_device=rank, dim=1, find_unused_parameters=True)

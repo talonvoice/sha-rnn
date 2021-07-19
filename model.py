@@ -35,13 +35,13 @@ class BlockNorm(nn.Module):
         self.xff = nn.LayerNorm(input_dim)
 
 class Block(nn.Module):
-    def __init__(self, input_dim, hidden_dim, ff_dim=2048, heads=1, max_len=5000, dropout=0, rnn=False, attn=False, residual=False):
+    def __init__(self, input_dim, hidden_dim=2048, heads=1, max_len=5000, dropout=0, rnn=False, attn=False, residual=False):
         super().__init__()
         self.attn = nn.MultiheadAttention(input_dim, heads, dropout=dropout) if attn else None
         self.ln = BlockNorm(input_dim)
         self.dropout = nn.Dropout(dropout)
         self.rnn = nn.LSTM(input_dim, input_dim) if rnn else None
-        self.ff = Boom(input_dim, dropout=dropout, hidden_dim=ff_dim, shortcut=True)
+        self.ff = Boom(input_dim, dropout=dropout, hidden_dim=hidden_dim, shortcut=True)
         self.residual = residual
         self.max_len = max_len
 
@@ -78,14 +78,14 @@ class Block(nn.Module):
         return h, new_mem, new_hidden
 
 class SHARNN(nn.Module):
-    def __init__(self, n_token, embed_dim, hidden_dim, n_layers, ff_dim=2048, heads=1, max_len=5000, dropout=0, tied=False):
+    def __init__(self, n_token, embed_dim, hidden_dim=2048, n_layers=4, heads=1, max_len=5000, dropout=0, tied=False):
         super().__init__()
         self.encoder = nn.Embedding(n_token, embed_dim)
         self.decoder = nn.Linear(embed_dim, n_token)
         if tied:
             self.decoder.weight = self.encoder.weight
         self.blocks = nn.ModuleList([
-            Block(embed_dim, hidden_dim, ff_dim=ff_dim, heads=heads,
+            Block(embed_dim, hidden_dim, heads=heads,
                   max_len=max_len, dropout=dropout,
                   rnn=True, attn=(i == n_layers - 2), residual=False)
             for i in range(n_layers)
