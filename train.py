@@ -1,4 +1,5 @@
 import math
+import random
 
 import torch
 import torch.nn as nn
@@ -96,7 +97,7 @@ if __name__ == '__main__':
         rank = torch.distributed.get_rank()
         torch.cuda.set_device(rank)
 
-    dataset = enwik8()
+    dataset = enwik8(bsz=bsz, device=device)
     if not fresh:
         with open('model.pt', 'rb') as f:
             model = torch.load(f)
