@@ -18,8 +18,9 @@ def evaluate(model, crit, batches):
             seq_len = min(bptt, len(batches)-i-1)
             x      = batches[i   : i+seq_len]
             target = batches[i+1 : i+seq_len+1]
-            y, mem, hidden = model(x, mem, hidden)
-            loss = crit(y.flatten(end_dim=1), target.flatten())
+            with torch.cuda.amp.autocast():
+                y, hidden, mem = model(x, hidden=hidden, mem=mem)
+                loss = crit(y.flatten(end_dim=1), target.flatten())
             total_loss += loss.item()
             # progress bar
             pbar.update(1)
