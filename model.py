@@ -45,11 +45,15 @@ class Block(nn.Module):
         self.residual = residual
         self.max_len = max_len
 
-    def forward(self, h: Tensor, attn_mask: Tensor,
-            mem: Optional[Tensor]=None, hidden: Optional[Tuple[Tensor, Tensor]]=None
+    def forward(self,
+                h: Tensor,
+                attn_mask: Tensor,
+                *,
+                hidden: Optional[Tuple[Tensor, Tensor]]=None,
+                mem: Optional[Tensor]=None,
     ) -> Tuple[Tensor, Tensor, Tuple[Tensor, Tensor]]:
-        new_hidden = (torch.ones(0), torch.ones(0))
-        new_mem = torch.ones(0)
+        new_hidden = (torch.empty(0), torch.empty(0))
+        new_mem = torch.empty(0)
         h = self.ln.start(h)
         if self.rnn is not None:
             x, new_hidden = self.rnn(h, hidden)
@@ -75,7 +79,7 @@ class Block(nn.Module):
         x = self.ff(x)
         # x = checkpoint(self.ff, x)
         h = h + self.dropout(x)
-        return h, new_mem, new_hidden
+        return h, new_hidden, new_mem
 
 class SHARNN(nn.Module):
     def __init__(self, n_token, embed_dim, hidden_dim=2048, n_layers=4, heads=1, max_len=5000, dropout=0, tied=False):
@@ -93,9 +97,11 @@ class SHARNN(nn.Module):
         self.dropout = nn.Dropout(dropout)
         self.max_len = max_len
 
-    def forward(self, x,
-            mem: Optional[List[Tensor]]=None,
-            hidden: Optional[List[Tuple[Tensor, Tensor]]]=None
+    def forward(self,
+                x: Tensor,
+                *,
+                hidden: Optional[List[Tuple[Tensor, Tensor]]]=None,
+                mem: Optional[List[Tensor]]=None,
     ) -> Tuple[Tensor, List[Tensor], List[Tuple[Tensor, Tensor]]]:
         h = self.dropout(self.encoder(x))
         if mem is not None:
@@ -106,24 +112,24 @@ class SHARNN(nn.Module):
         if mem is not None:
             mem_mask = h.new_zeros((len(x), max([len(m) for m in mem])))
             attn_mask = torch.cat([mem_mask, attn_mask], dim=-1)
-        new_mem: List[Tensor] = []
         new_hidden: List[Tuple[Tensor, Tensor]] = []
+        new_mem: List[Tensor] = []
         for i, block in enumerate(self.blocks):
-            h, out_mem, out_hidden = block(
+            h, out_hidden, out_mem = block(
                 h, attn_mask=attn_mask,
                 hidden=hidden[i] if hidden is not None else None,
                 mem=mem[i] if mem is not None else None)
-            new_mem.append(out_mem)
-            new_hidden.append(out_hidden)
+            new_hidden.append((out_hidden[0].detach(), out_hidden[1].detach()))
+            new_mem.append(out_mem.detach())
         h = self.dropout(h)
         d = self.decoder(h)
-        return d, new_mem, new_hidden
+        return d, new_hidden, new_mem
 
     def sample(self, x: Tensor, length: int) -> Tensor:
         out = []
         mem = hidden = None
         for i in range(length):
-            y, mem, hidden = self.forward(x, mem, hidden)
+            y, hidden, mem = self.forward(x, mem, hidden)
             # x = torch.argmax(y[-1], dim=1).unsqueeze(0)
             y = F.softmax(y[-1] / 0.99, dim=1)
             x = torch.multinomial(y, 1)

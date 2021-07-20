@@ -38,6 +38,7 @@ def train(model, crit, optim, sched, dataset, epochs):
         postfix = {'lr': optim.param_groups[0]['lr']}
         total_loss = 0
         pbar = tqdm(desc=f"train[{i+1}]", total=len(batches) // bptt, postfix=postfix)
+        hidden = mem = None
         while True:
             seq_len = random.randint(bptt - 5, bptt + 5)
             if i + seq_len > len(batches):
@@ -47,7 +48,7 @@ def train(model, crit, optim, sched, dataset, epochs):
             i += seq_len
 
             with torch.cuda.amp.autocast():
-                y, _, _ = model(x)
+                y, hidden, mem = model(x, hidden=hidden, mem=mem)
                 loss = crit(y.flatten(end_dim=1), target.flatten())
             # loss = 0
             # for j in range(len(x)):
