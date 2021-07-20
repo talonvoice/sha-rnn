@@ -15,8 +15,9 @@ def evaluate(model, crit, batches):
         mem = hidden = None
         pbar = tqdm(desc='eval', total=len(batches) // bptt, postfix=postfix)
         for i in range(0, len(batches), bptt):
-            chunk = batches[i:i+1+bptt]
-            x, target = chunk[:-1], chunk[1:]
+            seq_len = min(bptt, len(batches)-i-1)
+            x      = batches[i   : i+seq_len]
+            target = batches[i+1 : i+seq_len+1]
             y, mem, hidden = model(x, mem, hidden)
             loss = crit(y.flatten(end_dim=1), target.flatten())
             total_loss += loss.item()
@@ -43,8 +44,8 @@ def train(model, crit, optim, sched, dataset, epochs):
             seq_len = random.randint(bptt - 5, bptt + 5)
             if i + seq_len > len(batches):
                 break
-            chunk = batches[i:i+1+seq_len]
-            x, target = chunk[:-1], chunk[1:]
+            x      = batches[i   : i+seq_len]
+            target = batches[i+1 : i+seq_len+1]
             i += seq_len
 
             with torch.cuda.amp.autocast():
