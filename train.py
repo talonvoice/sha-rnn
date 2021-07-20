@@ -46,8 +46,9 @@ def train(model, crit, optim, sched, dataset, epochs):
             x, target = chunk[:-1], chunk[1:]
             i += seq_len
 
-            y, _, _ = model(x)
-            loss = crit(y.flatten(end_dim=1), target.flatten())
+            with torch.cuda.amp.autocast():
+                y, _, _ = model(x)
+                loss = crit(y.flatten(end_dim=1), target.flatten())
             # loss = 0
             # for j in range(len(x)):
             #     y, mem, hidden = model.forward(x[j].unsqueeze(0), mem, hidden)
